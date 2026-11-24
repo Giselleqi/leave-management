@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leave Management</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #ffffff; --fg: #111111; --muted: #666666; --faint: #aaaaaa;
+    --border: #dddddd; --field: #ffffff; --btn: #efefef; --card: #f5f5f5; --track: #e4e4e4;
+    --bad: #cc0000; --okbg: #dff3e7; --oktx: #176b3a; --warnbg: #fdf0d5; --warntx: #7a4b05; --nobg: #fbe3e3; --notx: #8c1d1d; --graybg: #ececec; --graytx: #555;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #1b1b1f; --fg: #eeeeee; --muted: #a0a0a8; --faint: #666670;
+    --border: #3a3a42; --field: #26262c; --btn: #33333b; --card: #26262c; --track: #3a3a42;
+    --bad: #ff6b6b; --okbg: #1f3d2c; --oktx: #8fe0b0; --warnbg: #4a3a14; --warntx: #f3cf82; --nobg: #4a2323; --notx: #ffb0b0; --graybg: #33333b; --graytx: #c8c8d0;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; }
+  h1 { text-align: center; color: #ec4899; margin-top: 8px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 28px 0 8px; }
+  input, select, button { background: var(--field); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; font: inherit; }
+  button { background: var(--btn); padding: 8px 12px; cursor: pointer; }
+  input, select { padding: 8px; font-size: 16px; min-width: 0; }
+  input[type=checkbox] { padding: 0; }
+  .top { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+  #theme { font-size: 18px; padding: 4px 8px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row > * { flex: 1 1 130px; }
+  .row > button { flex: 0 0 auto; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .bal { background: var(--card); border-radius: 8px; padding: 12px; }
+  .bal .l { font-size: 13px; color: var(--muted); }
+  .bal .n { font-size: 26px; font-weight: 700; }
+  .bal .n small { font-size: 13px; font-weight: 400; color: var(--muted); }
+  .meter { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+  .meter > div { height: 100%; }
+  .hint { font-size: 13px; color: var(--muted); }
+  #msg, .err { color: var(--bad); font-size: 14px; min-height: 18px; margin-top: 6px; }
+  label.chk { display: flex; align-items: center; gap: 6px; font-size: 14px; flex: 0 1 auto; }
+  ul.items { list-style: none; padding: 0; margin: 8px 0 0; }
+  ul.items li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .items .main { flex: 1 1 180px; min-width: 0; }
+  .items .line1 { overflow-wrap: anywhere; }
+  .items .meta { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+  .items .acts { display: flex; gap: 6px; flex: none; }
+  .items button { padding: 4px 8px; font-size: 14px; }
+  .pill { font-size: 12px; padding: 2px 8px; border-radius: 6px; white-space: nowrap; flex: none; }
+  .pill.pending { background: var(--warnbg); color: var(--warntx); }
+  .pill.approved { background: var(--okbg); color: var(--oktx); }
+  .pill.rejected { background: var(--nobg); color: var(--notx); }
+  .pill.cancelled { background: var(--graybg); color: var(--graytx); }
+  .empty { color: var(--faint); text-align: center; padding: 14px 0; }
+  .calhead { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .calhead input { flex: none; }
+  .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+  .dow { font-size: 11px; color: var(--faint); text-align: center; }
+  .day { aspect-ratio: 1; border-radius: 4px; background: var(--card); font-size: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); }
+  .day.we { opacity: .5; }
+  .day.ok { background: #9fe1cb; color: #04342c; }
+  .day.pend { background: #fac775; color: #412402; }
+  .day.hol { background: #d3d1c7; color: #2c2c2a; }
+  .day small { font-size: 10px; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--border); }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .tw { overflow-x: auto; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <select id="who" title="Signed in as" aria-label="Signed in as"></select>
+  <button type="button" id="theme"></button>
+</div>
+<h1>Leave Management</h1>
+<div id="msg" role="alert"></div>
+
+<h2>My balance <span id="yearLabel" style="text-transform:none;letter-spacing:0"></span></h2>
+<div class="cards" id="balances"></div>
+
+<h2>Request leave</h2>
+<form id="form">
+  <div class="row" style="margin-bottom:8px">
+    <select id="type" title="Leave type"></select>
+    <label class="chk"><input type="checkbox" id="half"> Half day</label>
+  </div>
+  <div class="row" style="margin-bottom:8px">
+    <input type="date" id="from" required title="From" aria-label="From date">
+    <input type="date" id="to" required title="To" aria-label="To date">
+  </div>
+  <input type="text" id="reason" placeholder="Reason (optional)" autocomplete="off" style="width:100%;margin-bottom:8px">
+  <div class="hint" id="preview"></div>
+  <div class="err" id="ferr"></div>
+  <button type="submit" style="width:100%">Submit request</button>
+</form>
+
+<div id="approvalsWrap" hidden>
+  <h2>Waiting for your approval</h2>
+  <ul class="items" id="approvals"></ul>
+</div>
+
+<h2 id="reqTitle">Requests</h2>
+<div class="row">
+  <select id="statusFilter" title="Status filter">
+    <option value="">All statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="cancelled">Cancelled</option>
+  </select>
+  <button type="button" id="export">Export CSV</button>
+</div>
+<ul class="items" id="list"></ul>
+
+<h2>Team calendar</h2>
+<div class="calhead"><button type="button" id="prev" aria-label="Previous month">&lsaquo;</button><input type="month" id="month" aria-label="Month"><button type="button" id="next" aria-label="Next month">&rsaquo;</button></div>
+<div class="grid" id="dows"></div>
+<div class="grid" id="cal" style="margin-top:3px"></div>
+<div class="legend"><span><i style="background:#9fe1cb"></i>Approved</span><span><i style="background:#fac775"></i>Pending</span><span><i style="background:#d3d1c7"></i>Public holiday</span></div>
+
+<div id="adminWrap" hidden>
+  <h2>HR admin</h2>
+  <div class="tw"><table><thead><tr><th>Name</th><th>Role</th><th>Birthday</th><th>Annual</th><th>Sick</th><th>Birthday</th><th></th></tr></thead><tbody id="staff"></tbody></table></div>
+  <div class="cols" style="margin-top:16px">
+    <form id="addEmp">
+      <div class="hint" style="margin-bottom:6px">Add employee</div>
+      <div class="row">
+        <input type="text" id="empName" placeholder="Full name" required autocomplete="off" style="flex:1 1 100%">
+        <select id="empRole"><option value="employee">Employee</option><option value="manager">Manager</option><option value="hr">HR</option></select>
+        <input type="date" id="empBday" title="Birthday" aria-label="Birthday">
+        <button type="submit">Add</button>
+      </div>
+    </form>
+    <form id="addHol">
+      <div class="hint" style="margin-bottom:6px">Add public holiday</div>
+      <div class="row">
+        <input type="text" id="holName" placeholder="Holiday name" required autocomplete="off" style="flex:1 1 100%">
+        <input type="date" id="holDate" required aria-label="Holiday date">
+        <button type="submit">Add</button>
+      </div>
+    </form>
+  </div>
+  <ul class="items" id="hols"></ul>
+  <p style="margin-top:16px"><button type="button" id="reset">Reset demo data</button></p>
+</div>
+
+<script>
+  var TYPES = [
+    { id: 'annual', label: 'Annual leave', allowance: 21, color: '#1d9e75' },
+    { id: 'sick', label: 'Sick leave', allowance: 14, color: '#378add' },
+    { id: 'birthday', label: 'Birthday leave', allowance: 1, color: '#d4537e' },
+    { id: 'unpaid', label: 'Unpaid leave', allowance: null },
+    { id: 'others', label: 'Others', allowance: null }
+  ];
+  var ROLE_LABEL = { employee: 'Employee', manager: 'Manager', hr: 'HR' };
+  function $(id) { return document.getElementById(id); }
+  function typeOf(id) { return TYPES.filter(function (t) { return t.id === id; })[0]; }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function fmt(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function parse(s) { var a = s.split('-'); return new Date(+a[0], +a[1] - 1, +a[2]); }
+  function todayStr() { return fmt(new Date()); }
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function nice(s) { var d = parse(s); return d.getDate() + ' ' + MONTHS[d.getMonth()]; }
+  function num(n) { return String(Math.round(n * 10) / 10); }
+
+  // ---- theme (shared 'theme' key) ----
+  var theme = null;
+  try { theme = localStorage.getItem('theme'); } catch (e) {}
+  if (theme !== 'light' && theme !== 'dark') {
+    theme = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function applyTheme() {
+    document.documentElement.setAttribute('data-theme', theme);
+    $('theme').textContent = theme === 'dark' ? '☀️' : '🌙';
+    var label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+    $('theme').title = label; $('theme').setAttribute('aria-label', label);
+  }
+  $('theme').onclick = function () {
+    theme = theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('theme', theme); } catch (e) {}
+    applyTheme();
+  };
+  applyTheme();
+
+  // ---- data ----
+  var employees, requests, holidays, meId;
+  function seed() {
+    employees = [
+      { id: 'e1', name: 'Maya Chen', role: 'employee', bday: '03-14' },
+      { id: 'e2', name: 'Sam Okoye', role: 'employee', bday: '07-02' },
+      { id: 'e3', name: 'Priya Nair', role: 'employee', bday: '11-30' },
+      { id: 'e4', name: 'Alex Rivera', role: 'manager', bday: '05-21' },
+      { id: 'e5', name: 'Jordan Lee', role: 'hr', bday: '09-09' }
+    ];
+    holidays = [
+      { date: '2026-12-25', name: 'Christmas Day' },
+      { date: '2027-01-01', name: "New Year's Day" },
+      { date: '2027-12-25', name: 'Christmas Day' }
+    ];
+    requests = [
+      mk('e2', 'annual', '2026-12-08', '2026-12-10', false, '', 'approved'),
+      mk('e3', 'others', '2026-12-16', '2026-12-16', false, 'Moving house', 'approved'),
+      mk('e1', 'annual', '2026-12-22', '2026-12-24', false, 'Family trip', 'pending')
+    ];
+  }
+  function mk(empId, type, from, to, half, reason, status) {
+    return { id: uid(), empId: empId, type: type, from: from, to: to, half: half, reason: reason, status: status,
+             comment: '', created: todayStr(), dates: workdays(from, to) };
+  }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function load() {
+    try {
+      employees = JSON.parse(localStorage.getItem('lm_employees'));
+      requests = JSON.parse(localStorage.getItem('lm_requests'));
+      holidays = JSON.parse(localStorage.getItem('lm_holidays'));
+      meId = localStorage.getItem('lm_user');
+    } catch (e) {}
+    if (!Array.isArray(employees) || !employees.length || !Array.isArray(requests) || !Array.isArray(holidays)) {
+      seed();
+    }
+  }
+  function save() {
+    try {
+      localStorage.setItem('lm_employees', JSON.stringify(employees));
+      localStorage.setItem('lm_requests', JSON.stringify(requests));
+      localStorage.setItem('lm_holidays', JSON.stringify(holidays));
+      localStorage.setItem('lm_user', meId || '');
+      return true;
+    } catch (e) { say('Could not save — browser storage is blocked or full.'); return false; }
+  }
+  function say(t) { $('msg').textContent = t || ''; }
+
+  function emp(id) { return employees.filter(function (e) { return e.id === id; })[0]; }
+  function me() { return emp(meId) || employees[0]; }
+
+  // ---- working days ----
+  function holiday(s) { return holidays.filter(function (h) { return h.date === s; })[0]; }
+  function isWork(s) { var dow = parse(s).getDay(); return dow !== 0 && dow !== 6 && !holiday(s); }
+  function workdays(a, b) {
+    var out = [], d = parse(a), e = parse(b), n = 0;
+    while (d <= e && n++ < 400) { var s = fmt(d); if (isWork(s)) out.push(s); d.setDate(d.getDate() + 1); }
+    return out;
+  }
+
+  // ---- balances ----
+  function active(r) { return r.status === 'pending' || r.status === 'approved'; }
+  function dayCount(r, year) {
+    var n = r.dates.filter(function (d) { return !year || d.slice(0, 4) === String(year); }).length;
+    return r.half ? n * 0.5 : n;
+  }
+  function used(empId, type, year) {
+    return requests.reduce(function (s, r) {
+      return s + (r.empId === empId && r.type === type && active(r) ? dayCount(r, year) : 0);
+    }, 0);
+  }
+  var YEAR = new Date().getFullYear();
+
+  // ---- who / approvals ----
+  function canApprove(user, r) {
+    var owner = emp(r.empId);
+    if (!owner || user.id === owner.id) return false;
+    if (user.role === 'hr') return true;
+    return user.role === 'manager' && owner.role !== 'manager';
+  }
+  function seesAll() { return me().role !== 'employee'; }
+
+  // ---- DOM helper ----
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function fillTypes() {
+    TYPES.forEach(function (t) { var o = el('option', '', t.label); o.value = t.id; $('type').appendChild(o); });
+  }
+  fillTypes();
+
+  // ---- form ----
+  function syncForm() {
+    var single = $('half').checked || $('type').value === 'birthday';
+    $('half').disabled = $('type').value === 'birthday';
+    if ($('type').value === 'birthday') $('half').checked = false;
+    if (single && $('from').value) $('to').value = $('from').value;
+    $('to').disabled = single;
+    $('reason').placeholder = $('type').value === 'others' ? 'Reason (required for Others)' : 'Reason (optional)';
+    var f = $('from').value, t = $('to').value;
+    if (!f || !t || t < f) { $('preview').textContent = ''; return; }
+    var n = workdays(f, t).length * ($('half').checked ? 0.5 : 1);
+    $('preview').textContent = num(n) + (n === 1 ? ' working day' : ' working days') + '. Weekends and public holidays are skipped.';
+  }
+  ['type', 'half', 'from', 'to'].forEach(function (id) { $(id).oninput = $(id).onchange = syncForm; });
+
+  $('form').onsubmit = function (ev) {
+    ev.preventDefault();
+    $('ferr').textContent = ''; say('');
+    var user = me(), type = $('type').value, half = $('half').checked;
+    var from = $('from').value, to = (half || type === 'birthday') ? from : $('to').value;
+    var reason = $('reason').value.trim();
+    function fail(t) { $('ferr').textContent = t; }
+    if (!from || !to) return fail('Pick a start and end date.');
+    if (to < from) return fail('The end date is before the start date.');
+    if (parse(to) - parse(from) > 366 * 86400000) return fail('Requests can span at most one year.');
+    if (type === 'others' && !reason) return fail('Add a reason for Others.');
+    var dates = workdays(from, to);
+    if (!dates.length) return fail('That range has no working days.');
+    var overlap = requests.filter(function (r) { return r.empId === user.id && active(r) && r.from <= to && r.to >= from; })[0];
+    if (overlap) return fail('This overlaps your ' + typeOf(overlap.type).label.toLowerCase() + ' on ' + nice(overlap.from) + (overlap.to !== overlap.from ? ' to ' + nice(overlap.to) : '') + '.');
+    var t = typeOf(type), per = half ? 0.5 : 1;
+    if (t.allowance != null) {
+      var years = {};
+      dates.forEach(function (d) { var y = d.slice(0, 4); years[y] = (years[y] || 0) + per; });
+      for (var y in years) {
+        var left = t.allowance - used(user.id, type, y);
+        if (years[y] > left) return fail('Not enough ' + t.label.toLowerCase() + ' for ' + y + ': ' + num(Math.max(0, left)) + ' left, ' + num(years[y]) + ' requested.');
+      }
+    }
+    var r = mk(user.id, type, from, to, half, reason, 'pending');
+    r.dates = dates;
+    requests.push(r);
+    if (!save()) { requests.pop(); return; }
+    $('form').reset(); syncForm(); renderAll();
+  };
+
+  // ---- actions ----
+  function setStatus(r, status, comment) {
+    r.status = status; if (comment) r.comment = comment;
+    save(); renderAll();
+  }
+  function reqRow(r, showApprove) {
+    var li = el('li'), o = emp(r.empId);
+    var main = el('div', 'main');
+    var span = r.to === r.from ? nice(r.from) : nice(r.from) + ' to ' + nice(r.to);
+    main.appendChild(el('div', 'line1', typeOf(r.type).label + ' · ' + span + (r.half ? ' (half day)' : '')));
+    var meta = (o ? o.name : 'Former employee') + ' · ' + num(dayCount(r)) + (dayCount(r) === 1 ? ' day' : ' days');
+    if (r.reason) meta += ' · ' + r.reason;
+    if (r.comment) meta += ' · Manager: ' + r.comment;
+    main.appendChild(el('div', 'meta', meta));
+    li.appendChild(main);
+    li.appendChild(el('span', 'pill ' + r.status, r.status.charAt(0).toUpperCase() + r.status.slice(1)));
+    var acts = el('div', 'acts');
+    if (showApprove && r.status === 'pending' && canApprove(me(), r)) {
+      var a = el('button', '', 'Approve'); a.onclick = function () { setStatus(r, 'approved'); };
+      var x = el('button', '', 'Reject');
+      x.onclick = function () {
+        var c = prompt('Reason for rejecting (optional)');
+        if (c === null) return;
+        setStatus(r, 'rejected', c.trim());
+      };
+      acts.appendChild(a); acts.appendChild(x);
+    }
+    if (r.empId === me().id && (r.status === 'pending' || (r.status === 'approved' && r.from >= todayStr()))) {
+      var c = el('button', '', 'Cancel');
+      c.onclick = function () { if (confirm('Cancel this request?')) setStatus(r, 'cancelled'); };
+      acts.appendChild(c);
+    }
+    if (acts.children.length) li.appendChild(acts);
+    return li;
+  }
+  function byDate(a, b) { return a.from < b.from ? 1 : a.from > b.from ? -1 : 0; }
+
+  // ---- render ----
+  function renderWho() {
+    var s = $('who'); s.textContent = '';
+    employees.forEach(function (e) { var o = el('option', '', e.name + ' (' + ROLE_LABEL[e.role] + ')'); o.value = e.id; s.appendChild(o); });
+    s.value = me().id;
+  }
+  $('who').onchange = function () { meId = $('who').value; save(); renderAll(); };
+
+  function renderBalances() {
+    var u = me(), box = $('balances'); box.textContent = '';
+    $('yearLabel').textContent = '(' + YEAR + ')';
+    TYPES.filter(function (t) { return t.allowance != null; }).forEach(function (t) {
+      var left = Math.max(0, t.allowance - used(u.id, t.id, YEAR));
+      var c = el('div', 'bal');
+      c.appendChild(el('div', 'l', t.label));
+      var n = el('div', 'n', num(left) + ' '); n.appendChild(el('small', '', 'of ' + t.allowance + (t.allowance === 1 ? ' day left' : ' days left')));
+      c.appendChild(n);
+      var m = el('div', 'meter'), f = el('div'); f.style.width = (left / t.allowance * 100) + '%'; f.style.background = t.color;
+      m.appendChild(f); c.appendChild(m);
+      box.appendChild(c);
+    });
+    var p = requests.filter(function (r) { return r.empId === u.id && r.status === 'pending'; }).length;
+    var c = el('div', 'bal'); c.appendChild(el('div', 'l', 'Pending requests')); c.appendChild(el('div', 'n', String(p)));
+    c.appendChild(el('div', 'hint', 'Unpaid and Others have no fixed allowance')); box.appendChild(c);
+  }
+
+  function renderApprovals() {
+    var u = me();
+    var list = requests.filter(function (r) { return r.status === 'pending' && canApprove(u, r); }).sort(byDate);
+    $('approvalsWrap').hidden = u.role === 'employee';
+    var ul = $('approvals'); ul.textContent = '';
+    if (!list.length) { ul.appendChild(el('li', 'empty', 'Nothing waiting for you')); return; }
+    list.forEach(function (r) { ul.appendChild(reqRow(r, true)); });
+  }
+
+  function visible() {
+    var u = me(), f = $('statusFilter').value;
+    return requests.filter(function (r) {
+      return (seesAll() || r.empId === u.id) && (!f || r.status === f);
+    }).sort(byDate);
+  }
+  function renderList() {
+    $('reqTitle').textContent = seesAll() ? 'All requests' : 'My requests';
+    var ul = $('list'); ul.textContent = '';
+    var rows = visible();
+    if (!rows.length) { ul.appendChild(el('li', 'empty', 'No requests yet')); return; }
+    rows.forEach(function (r) { ul.appendChild(reqRow(r, false)); });
+  }
+
+  function csvCell(v) {
+    v = String(v);
+    if (/^[=+\-@\t\r]/.test(v)) v = "'" + v;
+    return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }
+  $('export').onclick = function () {
+    var rows = visible().slice().reverse();
+    if (!rows.length) { say('Nothing to export.'); return; }
+    say('');
+    var lines = [['Employee', 'Type', 'From', 'To', 'Days', 'Half day', 'Status', 'Reason', 'Comment', 'Submitted'].join(',')];
+    rows.forEach(function (r) {
+      var o = emp(r.empId);
+      lines.push([csvCell(o ? o.name : ''), csvCell(typeOf(r.type).label), r.from, r.to, num(dayCount(r)), r.half ? 'Yes' : 'No',
+                  r.status, csvCell(r.reason), csvCell(r.comment), r.created].join(','));
+    });
+    var blob = new Blob(['﻿' + lines.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'leave-requests-' + todayStr() + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  };
+  $('statusFilter').onchange = renderList;
+
+  // calendar
+  ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(function (d) { $('dows').appendChild(el('div', 'dow', d)); });
+  $('month').value = todayStr().slice(0, 7);
+  function shiftMonth(n) {
+    var a = $('month').value.split('-'), d = new Date(+a[0], +a[1] - 1 + n, 1);
+    $('month').value = d.getFullYear() + '-' + pad(d.getMonth() + 1); renderCal();
+  }
+  $('prev').onclick = function () { shiftMonth(-1); };
+  $('next').onclick = function () { shiftMonth(1); };
+  $('month').onchange = function () { if (!$('month').value) $('month').value = todayStr().slice(0, 7); renderCal(); };
+  function renderCal() {
+    var a = $('month').value.split('-'), y = +a[0], m = +a[1] - 1;
+    var box = $('cal'); box.textContent = '';
+    var first = new Date(y, m, 1), lead = (first.getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate();
+    for (var i = 0; i < lead; i++) box.appendChild(el('div'));
+    for (var d = 1; d <= days; d++) {
+      var s = y + '-' + pad(m + 1) + '-' + pad(d), dow = new Date(y, m, d).getDay();
+      var c = el('div', 'day' + (dow === 0 || dow === 6 ? ' we' : ''));
+      c.appendChild(el('span', '', String(d)));
+      var h = holiday(s);
+      var off = requests.filter(function (r) { return active(r) && r.dates.indexOf(s) >= 0; });
+      var tip = [];
+      if (h) { c.classList.add('hol'); tip.push(h.name); }
+      else if (off.length) {
+        c.classList.add(off.some(function (r) { return r.status === 'approved'; }) ? 'ok' : 'pend');
+        c.appendChild(el('small', '', String(off.length)));
+      }
+      off.forEach(function (r) { var o = emp(r.empId); tip.push((o ? o.name : '?') + ' – ' + typeOf(r.type).label + ' (' + r.status + ')'); });
+      if (tip.length) c.title = tip.join('\n');
+      box.appendChild(c);
+    }
+  }
+
+  // HR admin
+  function renderAdmin() {
+    var u = me(); $('adminWrap').hidden = u.role !== 'hr';
+    if (u.role !== 'hr') return;
+    var tb = $('staff'); tb.textContent = '';
+    employees.forEach(function (e) {
+      var tr = el('tr');
+      var left = function (t) { var T = typeOf(t); return num(Math.max(0, T.allowance - used(e.id, t, YEAR))); };
+      var bd = e.bday ? nice(YEAR + '-' + e.bday) : '–';
+      [e.name, ROLE_LABEL[e.role], bd, left('annual'), left('sick'), left('birthday')].forEach(function (v) { tr.appendChild(el('td', '', v)); });
+      var td = el('td'), del = el('button', '', '✕'); del.title = 'Remove employee'; del.setAttribute('aria-label', 'Remove ' + e.name);
+      del.onclick = function () {
+        if (e.id === me().id) { say('You can’t remove yourself.'); return; }
+        if (e.role === 'hr' && employees.filter(function (x) { return x.role === 'hr'; }).length < 2) { say('Keep at least one HR user.'); return; }
+        if (!confirm('Remove ' + e.name + ' and all of their requests?')) return;
+        employees = employees.filter(function (x) { return x !== e; });
+        requests = requests.filter(function (r) { return r.empId !== e.id; });
+        save(); renderAll();
+      };
+      td.appendChild(del); tr.appendChild(td); tb.appendChild(tr);
+    });
+    var ul = $('hols'); ul.textContent = '';
+    holidays.slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; }).forEach(function (h) {
+      var li = el('li'), main = el('div', 'main');
+      main.appendChild(el('div', 'line1', h.name)); main.appendChild(el('div', 'meta', h.date));
+      var b = el('button', '', '✕'); b.title = 'Remove holiday'; b.setAttribute('aria-label', 'Remove ' + h.name);
+      b.onclick = function () { holidays = holidays.filter(function (x) { return x !== h; }); save(); renderAll(); };
+      li.appendChild(main); li.appendChild(b); ul.appendChild(li);
+    });
+  }
+  $('addEmp').onsubmit = function (ev) {
+    ev.preventDefault();
+    var name = $('empName').value.trim(); if (!name) return;
+    employees.push({ id: uid(), name: name, role: $('empRole').value, bday: $('empBday').value.slice(5) });
+    $('addEmp').reset(); save(); renderAll();
+  };
+  $('addHol').onsubmit = function (ev) {
+    ev.preventDefault();
+    var d = $('holDate').value; if (!d) return;
+    if (holiday(d)) { say('That date is already a public holiday.'); return; }
+    holidays.push({ date: d, name: $('holName').value.trim() });
+    $('addHol').reset(); save(); renderAll();
+  };
+  $('reset').onclick = function () {
+    if (!confirm('Reset all employees, holidays and requests to the demo data?')) return;
+    seed(); meId = 'e5'; save(); renderAll();
+  };
+
+  function renderAll() { renderWho(); renderBalances(); renderApprovals(); renderList(); renderCal(); renderAdmin(); syncForm(); }
+  load(); if (!emp(meId)) meId = employees[0].id;
+  renderAll();
+</script>
+</body>
+</html>
